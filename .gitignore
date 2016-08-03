@@ -3,3 +3,5 @@ db.sqlite3
 *.sw[po]
 env/
 __pycache__
+node_modules
+typings

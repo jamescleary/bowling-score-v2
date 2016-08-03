@@ -5,7 +5,7 @@ from rest_framework import (
 )
 
 from game.models import (Game, Frame)
-from game.serializers import (GameSerializer, FrameSerializer)
+from game.serializers import GameSerializer
 
 
 # Create your views here.
@@ -21,14 +21,23 @@ class GameList(mixins.ListModelMixin,
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
 
-class GameFrames(mixins.ListModelMixin,
-                 mixins.CreateModelMixin,
-                 generics.GenericAPIView):
-    serializer_class = FrameSerializer
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
 
-    def get_queryset(self, *args, **kwargs):
-        return Game.objects.get(name=self.game_name).frames.all()
+class GameDetails(mixins.RetrieveModelMixin,
+                  mixins.UpdateModelMixin,
+                  mixins.DestroyModelMixin,
+                  generics.GenericAPIView):
+    queryset = Game.objects.all()
+    serializer_class = GameSerializer
+    lookup_field = "name"
+    lookup_url_kwarg = "name"
 
     def get(self, request, *args, **kwargs):
-        self.game_name = kwargs['name']
-        return self.list(request, *args, **kwargs)
+        return self.retrieve(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)

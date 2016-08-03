@@ -1,223 +1,178 @@
 import random
 import json
 from django.test import TestCase
+from rest_framework import serializers
+from game.serializers import GameSerializer
 from game.models import (
     Frame, Game, ScoreException
 )
 
-# Create your tests here.
-class GameTestCase(TestCase):
+class SerializerTestCase(TestCase):
     def setUp(self):
-        self.perfect_game = Game.objects.new_game("perfect")
-        for frame in self.perfect_game.frames.all():
-            if frame.is_final_frame():
-                frame.frame_type = Frame.FINAL_FRAME
-                frame.rolls_json = '[10, 10, 10]'
-            else:
-                frame.frame_type = Frame.STRIKE
-                frame.rolls_json = '[10]'
-            frame.complete = True
-            frame.save()
+        self.ser = GameSerializer()
 
-        self.incomplete_game = Game.objects.new_game(name="incomplete")
-        (first, second, third,
-         fourth, fifth) = self.incomplete_game.frames.filter(
-            frame_number__lt=5)
-        first.frame_type = Frame.OPEN_FRAME
-        first.rolls_json = '[6, 3]'
-        first.complete = True
-        first.save()
+    def test_validate_rolls(self):
+        rolls = self.ser.validate_rolls([1, 2, 3, 4])
+        self.assertEqual(rolls, [1, 2, 3, 4])
+        with self.assertRaises(serializers.ValidationError):
+            rolls2 = self.ser.validate_rolls([5,6])
 
-        second.frame_type = Frame.SPARE
-        second.rolls_json = '[6, 4]'
-        second.complete = True
-        second.save()
+class BaseGameTestCase(TestCase):
+    def setUp(self):
+        self.new = Game(name="newgame")
+        self.new.save()
 
-        third.frame_type = Frame.STRIKE
-        third.rolls_json = '[10]'
-        third.complete = True
-        third.save()
+        self.perfect = Game(name="perfect")
+        self.perfect._rolls = ("[10, 10, 10, 10, 10, 10,"
+                               " 10, 10, 10, 10, 10, 10]")
+        self.perfect.save()
 
-        fourth.frame_type = Frame.OPEN_FRAME
-        fourth.rolls_json = '[0, 3]'
-        fourth.complete = True
-        fourth.save()
-        fifth.frame_type = Frame.HALF
-        fifth.rolls_json = '[6]'
-        fifth.complete = False
-        fifth.save()
+        self.incomplete = Game(name="incomplete")
+        self.incomplete._rolls = ("[10, 3, 4, 5, 5, 10, 2, 4, 0, 0]")
+        self.incomplete.save()
+
+        self.regular = Game(name="regular")
+        self.regular._rolls = ("[5, 4, 6, 4, 10, 2, 3, 1, 4,"
+                               " 4, 0, 7, 2, 8, 0, 10, 2, 3]")
+        self.regular.save()
+
+
+class GameTestCase(BaseGameTestCase):
+    def test_frames(self):
+        self.assertEqual(len(self.perfect.frames), 10)
+        self.assertEqual(len(self.incomplete.frames), 7)
+        self.assertEqual(len(self.regular.frames), 10)
 
     def test_score(self):
-        self.assertEqual(self.perfect_game.score(), 300)
-        self.assertEqual(self.incomplete_game.score(), 51)
+        self.assertEqual(self.perfect.score, 300)
+        self.assertEqual(self.incomplete.score, 66)
+        self.assertEqual(self.regular.score, 95)
+
+class GameMutTestCase(BaseGameTestCase):
+    def test_add_roll(self):
+        self.incomplete.add_roll(6)
+        self.assertEqual(self.incomplete.score, 72)
+        with self.assertRaises(ScoreException):
+            self.perfect.add_roll(5)
+            self.complete.add_roll(5)
+            self.incomplete.add_roll(7)
 
 
-class FrameTestCase(TestCase):
+
+
+class BaseFrameTestCase(TestCase):
     def setUp(self):
-        self.game = Game(name="test_game2")
-        self.game.save()
+        self.strike0 = Frame([10])
+        self.strike1 = Frame([10, 10])
+        self.strike2 = Frame([10, 10, 10])
+        self.strike = Frame([10, 3, 4, 6])
+        self.spare = Frame([7, 3, 4, 6])
+        self.new = Frame([])
+        self.half = Frame([7])
+        self.open = Frame([2, 3, 4, 5])
+        self.final = Frame([2, 3], final=True)
+        self.finaln = Frame([2], final=True)
+        self.finalsn = Frame([7, 3, 4], final=True)
+        self.finalx = Frame([10], final=True)
+        self.finalxn = Frame([10, 4], final=True)
+        self.finalxxn = Frame([10, 10, 3], final=True)
+        self.finalxnn = Frame([10, 4, 3], final=True)
 
-        self.strike = Frame(
-            parent_game=self.game,
-            frame_type=Frame.STRIKE,
-            frame_number=0,
-            rolls_json='[10]'
-        )
-        self.strike.save()
+    def tearDown(self):
+        self.strike0 = Frame([10])
+        self.strike1 = Frame([10, 10])
+        self.strike2 = Frame([10, 10, 10])
+        self.strike = Frame([10, 3, 4, 6])
+        self.spare = Frame([7, 3, 4, 6])
+        self.new = Frame([])
+        self.half = Frame([7])
+        self.open = Frame([2, 3, 4, 5])
+        self.final = Frame([2, 3], final=True)
 
-        self.spare = Frame(
-            parent_game=self.game,
-            frame_type=Frame.SPARE,
-            frame_number=0,
-            rolls_json='[6,4]'
-        )
-        self.spare.save()
 
-        self.final_frame1 = Frame(
-            parent_game=self.game,
-            frame_type=Frame.FINAL_FRAME,
-            frame_number=9,
-            rolls_json='[6,4]'
-        )
-        self.final_frame1.save()
+class FrameTestCase(BaseFrameTestCase):
+    def test_frame_init(self):
+        self.assertEqual(self.strike.type, Frame.STRIKE)
+        self.assertEqual(self.strike.rolls, [10, 3, 4])
+        self.assertEqual(self.spare.type, Frame.SPARE)
+        self.assertEqual(self.spare.rolls, [7, 3, 4])
+        self.assertEqual(self.new.type, Frame.NEW)
+        self.assertEqual(self.new.rolls, [])
+        self.assertEqual(self.half.type, Frame.HALF)
+        self.assertEqual(self.half.rolls, [7])
+        self.assertEqual(self.open.type, Frame.OPEN_FRAME)
+        self.assertEqual(self.open.rolls, [2, 3])
+        self.assertEqual(self.final.type, Frame.FINAL_FRAME)
+        self.assertEqual(self.final.rolls, [2, 3])
 
-        self.final_frame2 = Frame(
-            parent_game=self.game,
-            frame_type=Frame.FINAL_FRAME,
-            frame_number=9,
-            rolls_json='[4,3]'
-        )
-        self.final_frame2.save()
+    def test_frame_scoring(self):
+        self.assertEqual(self.strike0.score(), 10)
+        self.assertEqual(self.strike1.score(), 20)
+        self.assertEqual(self.strike2.score(), 30)
+        self.assertEqual(self.strike.score(), 17)
+        self.assertEqual(self.spare.score(), 14)
+        self.assertEqual(self.new.score(), 0)
+        self.assertEqual(self.half.score(), 7)
+        self.assertEqual(self.open.score(), 5)
+        self.assertEqual(self.final.score(), 5)
 
-        self.final_frame3 = Frame(
-            parent_game=self.game,
-            frame_type=Frame.FINAL_FRAME,
-            frame_number=9,
-            rolls_json='[10, 3, 7]'
-        )
-        self.final_frame3.save()
+    def test_frame_can_add_roll(self):
+        self.assertTrue(self.strike0.can_add_roll())
+        self.assertTrue(self.strike1.can_add_roll())
+        self.assertTrue(self.new.can_add_roll())
+        self.assertTrue(self.half.can_add_roll())
+        self.assertFalse(self.strike.can_add_roll())
+        self.assertFalse(self.strike2.can_add_roll())
+        self.assertFalse(self.spare.can_add_roll())
+        self.assertFalse(self.open.can_add_roll())
+        self.assertFalse(self.final.can_add_roll())
+        self.assertTrue(self.finaln.can_add_roll())
+        self.assertFalse(self.finalsn.can_add_roll())
+        self.assertTrue(self.finalx.can_add_roll())
+        self.assertTrue(self.finalxn.can_add_roll())
+        self.assertFalse(self.finalxxn.can_add_roll())
+        self.assertFalse(self.finalxnn.can_add_roll())
 
-        self.final_frame4 = Frame(
-            parent_game=self.game,
-            frame_type=Frame.FINAL_FRAME,
-            frame_number=9,
-            rolls_json='[10]'
-        )
-        self.final_frame4.save()
+    def test_frame_is_roll_valid(self):
+        self.assertTrue(self.new._is_roll_valid(6))
+        self.assertTrue(self.new._is_roll_valid(10))
+        self.assertFalse(self.new._is_roll_valid(14))
+        self.assertFalse(self.new._is_roll_valid(-14))
+        self.assertTrue(self.half._is_roll_valid(2))
+        self.assertTrue(self.half._is_roll_valid(3))
+        self.assertFalse(self.half._is_roll_valid(5))
+        self.assertFalse(self.half._is_roll_valid(-5))
+        self.assertTrue(self.finaln._is_roll_valid(8))
+        self.assertFalse(self.finaln._is_roll_valid(9))
+        self.assertTrue(self.finalx._is_roll_valid(10))
+        self.assertTrue(self.finalx._is_roll_valid(2))
+        self.assertFalse(self.finalx._is_roll_valid(11))
+        self.assertTrue(self.finalxn._is_roll_valid(6))
+        self.assertFalse(self.finalxn._is_roll_valid(8))
 
-        self.new = Frame(
-            parent_game=self.game,
-            frame_type=Frame.NEW,
-            frame_number=0,
-            rolls_json='[]'
-        )
-        self.new.save()
 
-        self.half = Frame(
-            parent_game=self.game,
-            frame_type=Frame.HALF,
-            frame_number=0,
-            rolls_json='[6]'
-        )
-        self.new.save()
-
-    def test_strike_scoring(self):
-        self.assertEqual(self.strike.score(), 10)
-        self.assertEqual(
-            self.strike.score(
-                Frame(parent_game=self.game, frame_type=Frame.OPEN_FRAME,
-                      frame_number=1, rolls_json='[3,4]')
-            ), 17)
-        self.assertEqual(
-            self.strike.score(
-                Frame(parent_game=self.game, frame_type=Frame.STRIKE,
-                      frame_number=1, rolls_json='[10]'),
-                Frame(parent_game=self.game, frame_type=Frame.STRIKE,
-                      frame_number=2, rolls_json='[10]')
-            ), 30)
-
-        self.assertEqual(
-            self.strike.score(Frame(parent_game=self.game,
-                                    frame_type=Frame.FINAL_FRAME,
-                                    frame_number=1, rolls_json='[10,2,3]'
-            )), 22)
-
-        self.assertEqual(
-            self.strike.score(
-                Frame(parent_game=self.game, frame_type=Frame.STRIKE,
-                      frame_number=1, rolls_json='[10]'),
-                Frame(parent_game=self.game,
-                      frame_type=Frame.FINAL_FRAME,
-                      frame_number=1, rolls_json='[10,2,3]')
-            ), 30)
-
-    def test_spare_scoring(self):
-        self.assertEqual(self.spare.score(), 10)
-        self.assertEqual(
-            self.spare.score(
-                Frame(parent_game=self.game, frame_type=Frame.OPEN_FRAME,
-                      frame_number=1, rolls_json='[3,4]')
-            ), 13)
-        self.assertEqual(
-            self.spare.score(
-                Frame(parent_game=self.game, frame_type=Frame.STRIKE,
-                      frame_number=1, rolls_json='[10]'),
-                Frame(parent_game=self.game, frame_type=Frame.STRIKE,
-                      frame_number=2, rolls_json='[10]')
-            ), 20)
-
-        self.assertEqual(
-            self.spare.score(Frame(parent_game=self.game,
-                                    frame_type=Frame.FINAL_FRAME,
-                                    frame_number=1, rolls_json='[10,2,3]'
-            )), 20)
-
-        self.assertEqual(
-            self.spare.score(
-                Frame(parent_game=self.game,
-                      frame_type=Frame.FINAL_FRAME,
-                      frame_number=1, rolls_json='[2,8,10]')
-            ), 12)
-
-    def test_final_frame_scoring(self):
-        self.assertEqual(self.final_frame1.score(), 10)
-        self.assertEqual(self.final_frame2.score(), 7)
-        self.assertEqual(self.final_frame3.score(), 20)
-
-    def test_strike_add_roll(self):
-        with self.assertRaises(ScoreException):
-            self.strike.add_roll(3)
-
-    def test_spare_add_roll(self):
-        with self.assertRaises(ScoreException):
-            self.spare.add_roll(3)
-
-    def test_new_add_roll(self):
-        self.new.add_roll(3)
-        self.assertEqual([3], self.new.get_rolls())
-        self.assertEqual(Frame.HALF, self.new.frame_type)
-        self.assertFalse(self.new.complete)
-
-    def test_half_add_roll(self):
-        self.half.add_roll(3)
-        self.assertEqual([6, 3], self.half.get_rolls())
-
-    def test_open_frame_add_roll(self):
-        with self.assertRaises(ScoreException):
-            self.spare.add_roll(3)
-
-    def test_final_frame_add_roll(self):
-        self.final_frame1.add_roll(3)
-        self.assertEqual([6,4,3], self.final_frame1.get_rolls())
+class FrameMutTestCase(BaseFrameTestCase):
+    """
+    Test case for Frame methods that cause mutations
+    """
+    def test_frame_add_roll(self):
+        self.strike0.add_roll(1)
+        self.strike1.add_roll(1)
+        self.new.add_roll(1)
+        self.half.add_roll(1)
 
         with self.assertRaises(ScoreException):
-            self.final_frame2.add_roll(3)
-            self.final_frame3.add_roll(3)
+            self.strike.add_roll(1)
+            self.strike2.add_roll(1)
+            self.spare.add_roll(1)
+            self.open.add_roll(1)
+            self.final.add_roll(1)
 
-        self.final_frame4.add_roll(3)
-        self.assertEqual([10,3], self.final_frame4.get_rolls())
-        self.final_frame4.add_roll(7)
-        self.assertEqual([10,3,7], self.final_frame4.get_rolls())
-
-        with self.assertRaises(ScoreException):
-            self.final_frame4.add_roll(3)
+        self.assertEqual(self.new.type, Frame.HALF)
+        self.assertEqual(self.new.rolls, [1])
+        self.assertEqual(self.half.type, Frame.OPEN_FRAME)
+        self.assertEqual(self.half.rolls, [7, 1])
+        self.assertEqual(self.strike0.type, Frame.STRIKE)
+        self.assertEqual(self.strike0.rolls, [10, 1])
+        self.assertEqual(self.strike1.type, Frame.STRIKE)
+        self.assertEqual(self.strike1.rolls, [10, 10, 1])

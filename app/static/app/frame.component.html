@@ -1,0 +1,17 @@
+<div class="frame">
+    <div class="frame-rolls">
+        <div *ngIf="frame.type === FrameType.FinalFrame">
+            <div *ngFor="let roll of frame.rolls">
+                {{roll}}
+            </div>
+        </div>
+        <div *ngIf="frame.type !== FrameType.FinalFrame">
+            <div *ngFor="let roll of frame.rolls.slice(0, 2)">
+                {{roll}}
+            </div>
+        </div>
+    </div>
+    <div class="frame-score">
+        {{frame.score()}}
+    </div>
+</div>
