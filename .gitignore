@@ -5,3 +5,6 @@ env/
 __pycache__
 node_modules
 typings
+static/app/*.js
+static/app/*.js.map
+npm-debug.log

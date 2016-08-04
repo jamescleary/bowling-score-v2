@@ -1,0 +1,12 @@
+<div class="game-details" *ngIf="game">
+	<h1>{{game.name}}</h1>
+	<div class="frames">
+		<div *ngFor="let frame of game.frames">
+			<bowling-frame [frame]="frame"></bowling-frame>
+		</div>
+	</div>
+	<h4>Score: {{game.score}}</h4>
+	<p style="color: red;">{{error}}</p>
+	<input [(ngModel)]="roll" type="text" placeholder="How Many Pins?">
+	<button (click)="addRoll()">Go!</button>
+</div>

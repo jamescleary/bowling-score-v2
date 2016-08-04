@@ -16,12 +16,15 @@ class GameManager(models.Manager):
 
 class Game(models.Model):
     objects = GameManager()
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     _rolls = models.TextField(default='[]')
 
     @property
     def rolls(self):
-        return json.loads(self._rolls)
+        rolls = json.loads(self._rolls)
+        if rolls:
+            return rolls
+        return []
 
     @rolls.setter
     def rolls(self, rolls):

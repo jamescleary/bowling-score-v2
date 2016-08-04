@@ -11,7 +11,7 @@ class GameSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = Game
-        fields = ('id', 'name', 'rolls', 'score')
+        fields = ('pk', 'name', 'rolls', 'score')
 
     rolls = serializers.ListField(
         child=serializers.IntegerField(min_value=0, max_value=10)

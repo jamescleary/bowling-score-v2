@@ -28,10 +28,9 @@ class GameDetails(mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin,
                   mixins.DestroyModelMixin,
                   generics.GenericAPIView):
+
     queryset = Game.objects.all()
     serializer_class = GameSerializer
-    lookup_field = "name"
-    lookup_url_kwarg = "name"
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)

@@ -7,7 +7,7 @@ from game import views
 
 urlpatterns = [
     url(r'^games/$', views.GameList.as_view()),
-    url(r'^games/(?P<name>\w+)/$', views.GameDetails.as_view()),
+    url(r'^games/(?P<pk>[0-9]+)/$', views.GameDetails.as_view()),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

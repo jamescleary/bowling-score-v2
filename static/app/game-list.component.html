@@ -1,0 +1,15 @@
+<ul class="games">
+    <li *ngFor="let game of games">
+        <a (click)="gotoDetail(game)">
+            {{game.name}}: {{game.score}}
+        </a>
+    </li>
+</ul>
+<div *ngIf="editing">
+	<input [(ngModel)]="newGame" type="text"/>
+	<button (click)="saveNew()">Save</button>
+	<button (click)="cancelNew()">cancel</button>
+</div>
+<div *ngIf="!editing">
+	<button (click)="addNew()">Start new game</button>
+</div>

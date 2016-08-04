@@ -1,14 +1,14 @@
 export class Game {
-	id: number;
+	pk: number;
 	name: string;
 	rolls: number[];
 	frames: Frame[];
 	score: number;
 	curFrame: Frame;
 
-    constructor(id: number, name: string, rolls: number[],
+    constructor(pk: number, name: string, rolls: number[],
                 score: number) {
-        this.id = id;
+        this.pk = pk;
         this.name = name;
         this.rolls = rolls;
         this.frames = [];
@@ -17,23 +17,42 @@ export class Game {
 		this.evaluateFrames();
     }
 
+	addRoll(roll: number) {
+		if (roll < 0 || roll > 10) {
+			throw "Please use a number between 0 and 10";
+		} else if (this.curFrame.type === FrameType.Half && 
+				   10 - this.curFrame.score() < roll) {
+			throw ("Please use a number between 0 and " + 
+				   (10 - this.curFrame.score()));
+		} else if (this.frames.length === 10 && !this.frames[9].canAddRoll()) {
+			throw("Game Over!");
+		}
+		this.rolls.push(roll);
+		this.evaluateFrames();
+	}
+
 	evaluateFrames() {
 		this.curFrame = new Frame(false);
 		this.frames = [];
-        this.rolls.forEach((roll, i) => {
+		for (let i = 0; i < this.rolls.length; i++) {
+			let roll = this.rolls[i];
 			this.curFrame.addRoll(roll);
-			if ([FrameType.New, FrameType.Half].indexOf(this.curFrame.type) < 0) {
+			if ([ FrameType.New, FrameType.Half ].indexOf(this.curFrame.type) < 0) {
 				if (this.curFrame.type === FrameType.Strike) {
 					this.curFrame.addRolls(this.rolls.slice(i + 1, i + 3));
 				} else if (this.curFrame.type === FrameType.Spare) {
-					this.curFrame.addRoll(this.rolls[i+1]);
+					this.curFrame.addRolls(this.rolls.slice(i + 1, i + 2));
 				} else if (this.curFrame.type === FrameType.FinalFrame) {
-					this.curFrame.addRolls(this.rolls.slice(i+1));
+					this.curFrame.addRolls(this.rolls.slice(i));
+					this.frames.push(this.curFrame);
+					break;
 				}
 				this.frames.push(this.curFrame);
-				this.curFrame = new Frame(frames.length >= 9);
-			} 
-        })
+				this.curFrame = new Frame(this.frames.length >= 9);
+			} else if (this.rolls.slice(i).length === 1) {
+				this.frames.push(this.curFrame);
+			}
+        }
 	}
 }
 
@@ -66,6 +85,10 @@ export class Frame {
 		}
 		this.rolls = [];
     }
+
+	score(): number {
+		return this.rolls.reduce((a, b) => a + b, 0);
+	}
 
     addRoll(roll: number): Frame {
         if (this.canAddRoll()) {

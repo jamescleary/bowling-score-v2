@@ -1,6 +1,6 @@
 import { provideRouter, RouterConfig } from '@angular/router';
-import { GameListComponent } from './games.component';
-import { GameDetailsComponent } from './game-details.component';
+import { GamesListComponent } from './game-list.component';
+import { GameDetailComponent } from './game-detail.component';
 
 const routes: RouterConfig = [
     {
@@ -10,11 +10,11 @@ const routes: RouterConfig = [
     },
     {
         path: 'games',
-        component: GameListComponent
+        component: GamesListComponent
     },
     {
-        path: 'games/:name',
-        component: GameDetailsComponent
+        path: 'games/:pk',
+        component: GameDetailComponent
     }
 ];
 

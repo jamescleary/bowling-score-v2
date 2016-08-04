@@ -1,0 +1,18 @@
+<div class="frame">
+	<div class="frame-rolls" *ngIf="frame.type === FrameType.Strike">
+		<div>X</div>
+		<div>-</div>
+	</div>
+	<div class="frame-rolls" *ngIf="frame.type === FrameType.Spare">
+		<div>{{frame.rolls[0]}}</div>
+		<div>/</div>
+	</div>
+	<div class="frame-rolls" *ngIf="[FrameType.Strike, FrameType.Spare].indexOf(frame.type) < 0">
+		<div *ngFor="let roll of frame.rolls">
+			{{roll}}
+		</div>
+	</div>
+    <div class="frame-score">
+        {{frame.score()}}
+    </div>
+</div>
