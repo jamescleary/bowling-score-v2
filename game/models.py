@@ -8,19 +8,29 @@ class ScoreException(Exception):
 
 
 class GameManager(models.Manager):
+    """Custom manager for the Game model"""
     def new_game(self, name):
+        """shortcut for creating a new game"""
         game = Game(name=name)
         game.save()
         return game
 
 
 class Game(models.Model):
+    """
+    Django model for storing game data
+
+    only stores a list of rolls and a  name. All other stuff is calculated
+    based on that list because storing rolls on a Frame database model got
+    needlessly complicated.
+    """
     objects = GameManager()
     name = models.CharField(max_length=100)
     _rolls = models.TextField(default='[]')
 
     @property
     def rolls(self):
+        """Load rolls text field int a usable list of integers"""
         rolls = json.loads(self._rolls)
         if rolls:
             return rolls
@@ -28,14 +38,22 @@ class Game(models.Model):
 
     @rolls.setter
     def rolls(self, rolls):
+        """converts the given list of integers to the text _rolls attribute"""
         self._rolls = json.dumps(rolls)
 
     @property
     def score(self):
+        """Calculate the game's score"""
         return sum([frame.score() for frame in self.frames])
 
     @property
     def frames(self):
+        """
+        Separate the rolls list into its correct frames
+
+        Since there are different rules for Strikes, Spares, and the Final Frame
+        of the game, we'll have to validate for those
+        """
         rolls = self.rolls
         frames = [Frame([])]
         for (i, roll) in enumerate(rolls):
@@ -53,6 +71,7 @@ class Game(models.Model):
         return frames
 
     def add_roll(self, roll):
+        """Validate the given roll and push it onto the rolls list"""
         frames = self.frames
         rolls = self.rolls
         if len(frames) == 10 and not frames[-1].can_add_roll():
@@ -95,6 +114,7 @@ class Game(models.Model):
 
 
 class Frame(object):
+    """An object which stores a frame's information"""
     NEW = "N"
     HALF = "H"
     OPEN_FRAME = "OF"
@@ -104,6 +124,7 @@ class Frame(object):
     INVALID = "XX"
 
     def __init__(self, rolls=[], final=False):
+        """Decide the type and rolls which the model will use in other methods"""
         if final:
             self.type = Frame.FINAL_FRAME
             self.rolls = rolls
@@ -135,6 +156,7 @@ class Frame(object):
             self.add_roll(roll)
 
     def add_roll(self, roll):
+        """Validate the given roll and add it to the rolls list"""
         if self.can_add_roll():
             if not self._is_roll_valid(roll):
                 raise ScoreException(
@@ -156,6 +178,8 @@ class Frame(object):
                      self._ff_is_roll_invalid(roll)))
 
     def _ff_is_roll_invalid(self, roll):
+        """Since final frames' logic is a bit complicated, break it out into
+            its own function"""
         r = self.rolls
         # first roll strike
         if ((r == [10]) or
@@ -174,6 +198,7 @@ class Frame(object):
         return False
 
     def _determine_type(self):
+        """Determine the type of a frame based on its rolls attribute"""
         if self.type == Frame.FINAL_FRAME:
             self.type = Frame.FINAL_FRAME
         elif self.rolls == []:
@@ -188,6 +213,7 @@ class Frame(object):
             self.type = Frame.OPEN_FRAME
 
     def can_add_roll(self):
+        """Check whether a frame can add a roll"""
         if self.type == Frame.OPEN_FRAME:
             return False
         if self.type in (Frame.STRIKE, Frame.SPARE):
@@ -197,12 +223,15 @@ class Frame(object):
         return True
 
     def _ff_can_add_roll(self):
-            return ((len(self.rolls) < 2) or
-                    (len(self.rolls) == 2 and
-                     (self.rolls[0] == 10 or
-                      sum(self.rolls) == 10)))
+        """ since the logic for last frames is a bit complicated,
+        I'm breaking this out into its own method"""
+        return ((len(self.rolls) < 2) or
+                (len(self.rolls) == 2 and
+                    (self.rolls[0] == 10 or
+                        sum(self.rolls) == 10)))
 
     def score(self):
+        """Calculate the frame's score"""
         if self.rolls == []:
             return 0
         return sum(self.rolls)
